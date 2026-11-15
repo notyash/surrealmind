@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "seed": "tsx scripts/seed_company.ts",
+    "test:isolation": "tsx scripts/isolation_tests.ts"
   },
   "keywords": [],
   "author": "",

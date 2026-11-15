@@ -5,3 +5,6 @@ dist/
 .env.local
 .env.*.local
 *.tsbuildinfo
+AGENT_RULES.md
+TODO_HARDENING.md
+TODO.md
