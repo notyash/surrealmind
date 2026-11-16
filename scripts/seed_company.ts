@@ -20,7 +20,7 @@ async function main(): Promise<void> {
 
   console.log("\n=== 2. Seeding Foundation Truth (company/) ===");
   await admin.memory.remember(
-    "SurrealDB HQ is in London. Co-founder and CEO is Tobie. Enterprise Agent Memory supports hierarchical scopes and attenuated API keys.",
+    "SurrealDB HQ is in London. Co-founder and CEO is Tobie. Chiru is the Head of Finance at SurrealDB. Enterprise Agent Memory supports hierarchical scopes and attenuated API keys.",
     {
       scopes: "company",
       labels: ["tier=foundation", "origin=seed"],
@@ -39,8 +39,9 @@ async function main(): Promise<void> {
   console.log("✓ Finance department facts seeded.");
 
   console.log("\n=== 4. Seeding Chiru's Clean Private Draft (company/finance/chiru/) ===");
+  // Grounding Chiru strictly at SurrealDB eliminates any spurious entity links:
   await admin.memory.remember(
-    "In a private financial draft, Chiru analyzed rival company Acme's flat pricing tier X, and proposed an internal hybrid pricing model Y for SurrealDB.",
+    "In a private financial draft for SurrealDB, Chiru evaluated external market rates and proposed that SurrealDB adopt an internal hybrid pricing model Y.",
     {
       scopes: "company/finance/chiru",
       labels: ["tier=scratch", "author=chiru", "status=draft"],
