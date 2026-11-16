@@ -1,19 +1,16 @@
 {
   "name": "surrealmind",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "seed": "tsx scripts/seed_company.ts",
-    "test:isolation": "tsx scripts/isolation_tests.ts"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
-  "dependencies": {
-    "@surrealdb/memory": "^1.0.0-alpha.11",
-    "dotenv": "^18.0.10"
+    "test:isolation": "tsx tests/isolation.ts",
+    "test:promotion": "tsx tests/promotion.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

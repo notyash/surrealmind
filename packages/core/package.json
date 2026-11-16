@@ -1,0 +1,15 @@
+{
+  "name": "@surrealmind/core",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./config": "./src/config.ts",
+    "./promote": "./src/promote.ts"
+  },
+  "dependencies": {
+    "@surrealdb/memory": "^1.0.0-alpha.11",
+    "dotenv": "^18.0.10"
+  }
+}
