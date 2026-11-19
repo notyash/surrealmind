@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@surrealdb/memory": "^1.0.0-alpha.11",
-    "dotenv": "^18.0.10"
+    "dotenv": "^18.0.10",
+    "surrealdb": "^2.2.2"
   }
 }
