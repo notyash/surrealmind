@@ -10,9 +10,10 @@ DEFINE TABLE OVERWRITE promotionRequest SCHEMAFULL
         TYPE "pending" | "approved" | "rejected" 
         VALUE string::lowercase($value)
         DEFAULT "pending";
-    DEFINE FIELD OVERWRITE requestedAt ON promotionRequest TYPE datetime 
+    DEFINE FIELD OVERWRITE requestedAt ON promotionRequest
+        TYPE datetime 
         DEFAULT time::now();
-        
+
     DEFINE FIELD OVERWRITE reviewedBy ON promotionRequest TYPE option<string>; 
     DEFINE FIELD OVERWRITE reviewedAt ON promotionRequest TYPE option<datetime>;
     DEFINE FIELD OVERWRITE rejectionReason ON promotionRequest TYPE option<string>;
