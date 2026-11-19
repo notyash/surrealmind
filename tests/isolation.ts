@@ -1,5 +1,5 @@
 import {AgentMemoryError } from "@surrealdb/memory";
-import {whoAmI, type RoleKeyEnv, type WhoAmI } from "../src/config.js";
+import { type WhoAmI, type RoleKeyEnv, whoAmI } from "../packages/core/src/services/memorySetup.js";
 
 // Verifies each user can successfully write a memory into their own assigned scope.
 async function testAuthorizedWrites(who: WhoAmI) {
