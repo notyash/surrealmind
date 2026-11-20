@@ -1,2 +1,7 @@
 export * from "./utils/config.js"
+export * from "./utils/surrealdb.js"
 export * from "./services/promote.js"
+export * from "./models/promotionRequest.js"
+export * from "./dto/promotionRequest.js"
+export * from "./repos/promotionRequest.js"
+export * from "./repos/_tables.js"
