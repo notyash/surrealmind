@@ -1,3 +1,3 @@
-DEFINE TABLE derivedFrom TYPE RELATION 
+DEFINE TABLE OVERWRITE derivedFrom TYPE RELATION 
     IN promotionRequest 
     OUT promotionRequest;
