@@ -1,6 +1,6 @@
 DEFINE TABLE OVERWRITE user SCHEMAFULL
     PERMISSIONS
-        FOR select WHERE $auth != NONE
+        FOR select WHERE id = $auth OR id IN $auth->memberOf.out<-memberOf.in
         FOR create NONE
         FOR update WHERE id = $auth
         FOR delete WHERE id = $auth; 

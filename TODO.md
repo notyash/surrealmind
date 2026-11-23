@@ -1,61 +1,64 @@
-# SurrealMind - Backend & Schema Implementation TODO
+# SurrealMind - Backend & Schema Implementation Roadmap
 
-## Phase 1: Finalize Database Schema (`packages/core/src/db/`)
-- [ ] **Fix `memberOf.surql`**: Change lines 8–9 from `ON user` to `ON memberOf` for `rootScope` and `role`.
-- [ ] **Fix `promotionRequest.surql`**:
-  - Remove `READONLY` from `reviewedAt` (allows updating upon approval/rejection).
-  - Add indexed `targetDepartment: string` for $O(\log N)$ jurisdiction queries.
-  - Update `author` to `TYPE record<user | agent>`.
-- [ ] **Create `agent.surql`**:
-  - Define `agent` table (`name`, `workspace: record<workspace>`, `owner: record<user>`, `scope: string`, `model: option<string>`, `createdAt`).
-- [ ] **Schema Deployment**: Apply and verify all `.surql` definitions in SurrealDB.
+## ✅ Phase 1: Database Schema Finalized (`packages/core/src/db/`)
+- [x] **`user.surql`**: Hardened with Argon2, private email, hidden password hash, and colleague-only discovery (`$auth->memberOf.out<-memberOf.in`).
+- [x] **`workspace.surql`**: Hardened multi-tenant root with owner and member access controls.
+- [x] **`scope.surql`**: First-class graph entity (`name`, `path`, `workspace`, `createdAt`, `tombstonedAt`) with compound unique index `[workspace, path]`.
+- [x] **`agent.surql`**: Dedicated autonomous bot entity (`name`, `workspace`, `owner: record<user>`, `scope: record<scope>`, `model`, `tombstonedAt`).
+- [x] **`promotionRequest.surql`**:
+  - Replaced `PERMISSIONS FULL` with strict workspace boundaries (`workspace IN $auth->memberOf.out`).
+  - Added typed foreign keys: `fromScope: record<scope>`, `toScope: record<scope>`, `author: record<user | agent>`, `workspace: record<workspace>`.
+  - Added composite index: `promotion_scope_status_idx` on `[workspace, toScope, status]`.
+- [x] **`relations/memberOf.surql`**: Binds users to workspaces with `rootScope: record<scope>` and role.
+- [x] **`relations/parentOf.surql`**: Models the scope hierarchy tree (`scope -> parentOf -> scope`) with workspace-bounded permissions.
+- [x] **`relations/derivedFrom.surql`**: Models multi-hop PR lineage DAG with `createdAt READONLY` audit timestamps.
+- [x] **`access.surql`**: SurrealDB v2 record authentication for `user`.
 
 ---
 
-## Phase 2: Update TypeScript Models & DTOs (`packages/core/src/`)
-- [ ] **Update `models/promotionRequest.ts`**:
-  - Update `author: RecordId<"user" | "agent">`.
+## ⏳ Phase 2: Update TypeScript Models & DTOs (`packages/core/src/`)
+- [ ] **`models/promotionRequest.ts`**:
+  - Update `fromScope: RecordId<"scope">`, `toScope: RecordId<"scope">`.
+  - Update `author: RecordId<"user"> | RecordId<"agent">`.
   - Add `workspace: RecordId<"workspace">`.
-  - Add `targetDepartment: string`.
   - Update `reviewedBy?: RecordId<"user">`.
-- [ ] **Update `dto/promotionRequest.ts`**:
-  - Add `workspace`, `targetDepartment`, and stringified `author` / `reviewedBy` to DTOs and mapper.
-- [ ] **Add Models**:
+- [ ] **`dto/promotionRequest.ts`**:
+  - Update input/output DTOs with stringified IDs and mapper `toPromotionRequestDto()`.
+- [ ] **Create Domain Models**:
+  - `models/scope.ts`
+  - `models/agent.ts`
   - `models/workspace.ts`
   - `models/user.ts`
-  - `models/agent.ts`
-- [ ] **Update `repos/_tables.ts`**:
-  - Add table constants for `agent`, `workspace`, `memberOf`.
+- [ ] **`repos/_tables.ts`**:
+  - Export `Table` constants for `scope`, `agent`, `workspace`, `memberOf`, `parentOf`, `derivedFrom`.
 
 ---
 
-## Phase 3: Repository Primitives (`packages/core/src/repos/`)
-- [ ] **Clean up imports** in `packages/core/src/repos/promotionRequest.ts` (remove stray `d`).
-- [ ] **Implement `getPendingPromotionRequests(db, workspaceId, department)`**:
-  - Query using indexed `targetDepartment` and `workspace` filters.
-- [ ] **Implement `updatePromotionStatus(db, id, status, reviewDetails)`**:
+## ⏳ Phase 3: Repository Primitives (`packages/core/src/repos/`)
+- [ ] **`fetchPromotionRequest(db, id)`**: Complete and verify with typed DTO.
+- [ ] **`getPendingPromotionRequests(db, workspaceId, scopeId, includeChildren: boolean)`**:
+  - Query using composite index for exact scope, or traverse `->parentOf->scope` when `includeChildren` is true.
+- [ ] **`updatePromotionStatus(db, id, status, reviewDetails)`**:
   - Update status, `reviewedBy`, `reviewedAt`, and optional `rejectionReason`.
-- [ ] **Implement `createDerivedFromEdge(db, childId, parentId)`**:
+- [ ] **`createDerivedFromEdge(db, childId, parentId)`**:
   - Insert `RELATE` edge into `derivedFrom` relation table.
 
 ---
 
-## Phase 4: Service Orchestration (`packages/core/src/services/`)
-- [ ] **Scope Hierarchy Utility (`packages/core/src/utils/scope.ts`)**:
-  - Implement `isScopeAllowed(userScope, targetScope)`.
-- [ ] **Implement `approvePromotionRequest(...)`**:
-  - Validate request existence and pending status.
+## ⏳ Phase 4: Service Orchestration (`packages/core/src/services/`)
+- [ ] **`approvePromotionRequest(...)`**:
+  - Verify pending state.
   - Enforce Maker-Checker security (`author != reviewer`).
-  - Verify reviewer's `rootScope` covers `request.toScope`.
-  - Orchestrate memory promotion via `promote()` using admin client.
-  - Update record in DB to `"approved"`.
-  - Link DAG lineage via `createDerivedFromEdge` if derived from parent request.
-- [ ] **Implement `rejectPromotionRequest(...)`**:
-  - Verify reviewer scope authority.
-  - Update record status to `"rejected"` with reason.
+  - Verify reviewer's `rootScope` covers `request.toScope` via graph hierarchy check.
+  - Execute cross-scope memory migration (`admin.forget()` in draft scope, `admin.remember()` in target scope with provenance labels).
+  - Update DB status to `"approved"`.
+  - Create `derivedFrom` edge if derived from parent proposal.
+- [ ] **`rejectPromotionRequest(...)`**:
+  - Verify scope authority.
+  - Update DB status to `"rejected"` with reason.
 
 ---
 
-## Phase 5: Verification & Integration Testing
-- [ ] Write integration test script in `tests/test_promotion_flow.ts`.
-- [ ] Verify full lifecycle: Agent draft -> Request created -> Listed by department -> Approved with memory migration -> Provenance & lineage verified.
+## ⏳ Phase 5: Verification & Integration Testing
+- [ ] Write integration test script `tests/test_promotion_flow.ts`.
+- [ ] Verify full end-to-end lifecycle on Surreal Cloud.

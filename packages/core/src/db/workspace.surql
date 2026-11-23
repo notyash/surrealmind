@@ -5,7 +5,7 @@ DEFINE TABLE OVERWRITE workspace SCHEMAFULL
         FOR update WHERE owner = $auth
         FOR delete WHERE owner = $auth;
 
-DEFINE FIELD OVERWRITE name ON workspace TYPE string ASSERT string::len($value) > 0;
+DEFINE FIELD OVERWRITE name ON workspace TYPE string ASSERT string::len($value) > 1;
 DEFINE FIELD OVERWRITE logo ON workspace TYPE option<string | null>;
 DEFINE FIELD OVERWRITE owner ON workspace TYPE record<user> DEFAULT $auth ASSERT record::exists($value);
 DEFINE FIELD OVERWRITE createdAt ON workspace TYPE datetime DEFAULT time::now() READONLY;

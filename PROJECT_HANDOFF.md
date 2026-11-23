@@ -1,13 +1,13 @@
 # SurrealMind: Session Handoff & Architecture Context
 
-**Date:** 2026-11-22  
+**Date:** 2026-11-23  
 **Active Branch:** `feat/core-domain-promotion`  
-**Current Phase:** Phase 1 (Schema Tightening) & Phase 2 (Contracts & Repos)
+**Current Phase:** Phase 1 Completed ✅ | Moving to Phase 2 (Contracts & Repos)
 
 ---
 
 ## 1. Executive Summary & Product Vision
-**SurrealMind** is an enterprise multi-agent memory hub and context promotion system built on **SurrealDB v2** and **SurrealDB Agent Memory** (`@surrealdb/memory`). It operates like a "pull request and review" system for organizational AI memory:
+**SurrealMind** is an enterprise multi-agent memory hub and context governance system built on **SurrealDB v2** and **SurrealDB Agent Memory** (`@surrealdb/memory`). It operates like a "pull request and review" system for organizational AI memory:
 * Autonomous agents and humans draft insights in private leaf scopes.
 * When knowledge needs to be shared with a department or the whole company, a `promotionRequest` is submitted.
 * Authorized managers review the request in a TanStack Start web dashboard and approve/reject it.
@@ -19,51 +19,44 @@
 ## 2. Core Architectural Decisions (Locked In)
 
 1. **"Protected Branch" Model for Scopes:**
-   * Shared department scopes (e.g. `company/marketing`, `company/finance`, `company`) have direct `memory:write` disabled for all agent/user API keys.
-   * Humans and bots only write daily scratchpad notes directly to private leaf scopes (e.g. `company/marketing/chiru`).
+   * Shared department scopes (`company/marketing`, `company/finance`, `company`) have direct `memory:write` disabled for all keys.
+   * Humans and bots only write daily notes to private leaf scopes (`company/marketing/chiru`).
    * The *only* path into shared memory is via approved promotions executed by the backend service.
-2. **Multi-Tenancy Structure:**
+2. **First-Class Graph Scopes:**
+   * `scope` table (`name`, `path`, `workspace`, `createdAt`, `tombstonedAt`).
+   * Scope hierarchy is modeled with `scope -> parentOf -> scope` relation edges.
+   * `promotionRequest.fromScope` and `toScope` are typed `record<scope>`.
+3. **Multi-Tenancy & Zero-Trust RLS:**
    * `workspace` $\leftarrow$ `memberOf` $\leftarrow$ `user`.
-   * `rootScope` (e.g. `"company/marketing"`) and `role` live on the `memberOf` relation table, allowing a user to have different permissions across workspaces.
-3. **Autonomous Bots vs Humans:**
-   * Dedicated `agent` table (`name`, `workspace`, `owner: record<user>`, `scope`, `model`).
-   * `promotionRequest.author` is typed as `record<user | agent>` so bots aren't forced into the human `user` table.
-4. **Jurisdiction Queries:**
-   * `promotionRequest` contains an indexed `targetDepartment: string` field for fast $O(\log N)$ dashboard queries instead of slow string prefix scans on `toScope`.
+   * All database permissions enforce graph-traversed tenancy (`workspace IN $auth->memberOf.out`).
+   * Co-worker discovery is restricted to shared workspaces (`id IN $auth->memberOf.out<-memberOf.in`).
+4. **Autonomous Bots vs Humans:**
+   * Dedicated `agent` table (`name`, `workspace`, `owner: record<user>`, `scope: record<scope>`, `model`).
+   * `promotionRequest.author` is polymorphic: `record<user | agent>`.
 5. **Maker-Checker Security:**
    * The approval service enforces `author != reviewer` so managers cannot approve their own drafts.
-6. **Lineage Modeling:**
-   * Lineage stays `derivedFrom` between `promotionRequest → promotionRequest` as the governance audit trail. Vector embeddings live inside `@surrealdb/memory`.
-7. **Clean Architecture / Monorepo Layout:**
-   * `packages/core` (`@surrealmind/core`): Pure backend domain logic, repositories with dependency-injected `db: Surreal`, DTOs, and memory services.
-   * `apps/web` (`@surrealmind/web`): TanStack Start full-stack app. Server functions (`createServerFn`) act as thin RPC controllers calling `@surrealmind/core`. **`apps/web` is untouched until backend is 100% complete.**
+6. **Lineage DAG:**
+   * Lineage stays `derivedFrom` between `promotionRequest → promotionRequest` as the governance audit trail with `createdAt READONLY` timestamps.
 
 ---
 
 ## 3. Current Code & File Status
 
-### Uncommitted Working Tree (`packages/core/`):
-* `packages/core/src/db/`:
-  * `workspace.surql`: Defined with `$auth` row permissions.
-  * `user.surql`: Defined with Argon2 password hashing and `$auth` permissions.
-  * `memberOf.surql`: Relation table connecting `user` and `workspace`. **Needs fix:** lines 8–9 currently say `ON user`, must be `ON memberOf`.
-  * `promotionRequest.surql`: **Needs fix:** remove `READONLY` from `reviewedAt`, add `targetDepartment: string` + index, and set `author: record<user | agent>`.
-  * `relations/derivedFrom.surql`: Graph relation `IN promotionRequest OUT promotionRequest`.
-  * `access.surql`: SurrealDB v2 record authentication for `user`.
-* `packages/core/src/repos/promotionRequest.ts`:
-  * `createPromotionRequest(db, request)`: Implemented and verified via test script.
-  * `fetchPromotionRequest(db, id)`: Implemented with `Promise<PromotionRequestDto | null>`.
-  * `updatePromotionStatus`: Stubbed, needs implementation.
-  * *Note:* Remove accidental stray import `d` in line 1.
-* `packages/core/src/utils/`:
-  * `surrealdb.ts`: Lazy singleton (`getDb()`, `closeDb()`) avoiding top-level import side-effects.
-  * `config.ts`: Loads database and memory connection parameters.
+### Completed Schema (`packages/core/src/db/`):
+* `access.surql`: Record authentication (Argon2).
+* `user.surql`: Hardened with private email, hidden password hash, and colleague discovery.
+* `workspace.surql`: Hardened multi-tenant root with owner controls.
+* `scope.surql`: First-class graph entity with unique `[workspace, path]`.
+* `agent.surql`: Dedicated autonomous bot entity.
+* `promotionRequest.surql`: Bounded to workspace, typed record pointers, and composite index `promotion_scope_status_idx`.
+* `relations/memberOf.surql`: Binds users to workspaces with `rootScope: record<scope>`.
+* `relations/parentOf.surql`: Scope hierarchy relation `IN scope OUT scope`.
+* `relations/derivedFrom.surql`: Promotion lineage DAG with `createdAt` audit timestamp.
 
 ---
 
 ## 4. Coaching & Interaction Rules (`AGENT_RULES.md`)
 
-When resuming with the agent on the laptop, ensure it adheres to:
 1. **Plan first, from the user:** Ask the user to draft function signatures and architectures before critiquing.
 2. **Predict before explaining:** When the user asks "why" or "how", ask for their best guess first.
 3. **Hints before answers:** Never jump to full code or queries unprompted.
@@ -74,18 +67,16 @@ When resuming with the agent on the laptop, ensure it adheres to:
 
 ---
 
-## 5. Immediate Next Steps (Phase 1 & Phase 2)
+## 5. Immediate Next Steps (Phase 2 & 3)
 
-1. **Phase 1: Finalize Schema:**
-   - Fix `memberOf.surql` (`ON memberOf`).
-   - Fix `promotionRequest.surql` (remove `READONLY` on `reviewedAt`, add `targetDepartment`, `author: record<user | agent>`).
-   - Create `agent.surql`.
-2. **Phase 2: TypeScript Contracts:**
-   - Update `models/promotionRequest.ts` and `dto/promotionRequest.ts` with `workspace`, `targetDepartment`, and `author: RecordId<"user" | "agent">`.
-   - Update `repos/_tables.ts` with `agent`, `workspace`, `memberOf`.
-3. **Phase 3: Repository Functions:**
-   - Implement `getPendingPromotionRequests(db, workspaceId, department)`.
+1. **Phase 2: TypeScript Contracts:**
+   - Update `models/promotionRequest.ts` and `dto/promotionRequest.ts`.
+   - Create `models/scope.ts`, `models/agent.ts`, `models/workspace.ts`, `models/user.ts`.
+   - Update `repos/_tables.ts`.
+2. **Phase 3: Repository Functions:**
+   - Finish `fetchPromotionRequest(db, id)`.
+   - Implement `getPendingPromotionRequests(db, workspaceId, scopeId, includeChildren)`.
    - Implement `updatePromotionStatus(db, id, status, reviewDetails)`.
    - Implement `createDerivedFromEdge(db, childId, parentId)`.
-4. **Phase 4: Service Layer:**
+3. **Phase 4: Service Layer:**
    - Implement `approvePromotionRequest` & `rejectPromotionRequest`.
