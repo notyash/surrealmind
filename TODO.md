@@ -17,19 +17,20 @@
 ---
 
 ## ⏳ Phase 2: Update TypeScript Models & DTOs (`packages/core/src/`)
-- [ ] **`models/promotionRequest.ts`**:
+- [x] **`models/promotionRequest.ts`**:
   - Update `fromScope: RecordId<"scope">`, `toScope: RecordId<"scope">`.
   - Update `author: RecordId<"user"> | RecordId<"agent">`.
   - Add `workspace: RecordId<"workspace">`.
   - Update `reviewedBy?: RecordId<"user">`.
-- [ ] **`dto/promotionRequest.ts`**:
-  - Update input/output DTOs with stringified IDs and mapper `toPromotionRequestDto()`.
-- [ ] **Create Domain Models**:
-  - `models/scope.ts`
-  - `models/agent.ts`
-  - `models/workspace.ts`
-  - `models/user.ts`
-- [ ] **`repos/_tables.ts`**:
+  - Add `HydratedPromotionRequestRecord` for queries with `FETCH`.
+- [x] **`dto/promotionRequest.ts`**:
+  - Update input/output DTOs with hydrated child DTOs (`ScopeDto`, `WorkspaceDto`, `UserDto | AgentDto`) and mapper `toPromotionRequestDto()`.
+- [x] **Create Domain Models & DTOs**:
+  - `models/scope.ts` & `dto/scope.ts`
+  - `models/agent.ts` & `dto/agent.ts`
+  - `models/workspace.ts` & `dto/workspace.ts`
+  - `models/user.ts` & `dto/user.ts`
+- [x] **`repos/_tables.ts`**:
   - Export `Table` constants for `scope`, `agent`, `workspace`, `memberOf`, `parentOf`, `derivedFrom`.
 
 ---
@@ -48,7 +49,6 @@
 ## ⏳ Phase 4: Service Orchestration (`packages/core/src/services/`)
 - [ ] **`approvePromotionRequest(...)`**:
   - Verify pending state.
-  - Enforce Maker-Checker security (`author != reviewer`).
   - Verify reviewer's `rootScope` covers `request.toScope` via graph hierarchy check.
   - Execute cross-scope memory migration (`admin.forget()` in draft scope, `admin.remember()` in target scope with provenance labels).
   - Update DB status to `"approved"`.
