@@ -11,7 +11,7 @@ export interface UserDto {
 
 export function toUserDto(r: UserRecord): UserDto {
   return {
-    id: r.id.toString(),
+    id: String(r.id.id),
     username: r.username,
     email: r.email,
     avatarUrl: r.avatarUrl ?? null,

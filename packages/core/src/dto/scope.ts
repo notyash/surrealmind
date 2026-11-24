@@ -17,10 +17,10 @@ export interface CreateScopeDto {
 
 export function toScopeDto(r: ScopeRecord): ScopeDto {
   return {
-    id: r.id.toString(),
+    id: String(r.id.id),
     name: r.name,
     path: r.path,
-    workspaceId: r.workspace.toString(),
+    workspaceId: String(r.workspace.id),
     createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
     isTombstoned: Boolean(r.tombstonedAt)
   }

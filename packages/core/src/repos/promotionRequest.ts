@@ -1,12 +1,12 @@
 import { RecordId, Surreal } from "surrealdb"
 import { T } from "./_tables.js"
 import { toPromotionRequestDto, type CreatePromotionRequestDto, type PromotionRequestDto } from "../dto/promotionRequest.js"
-import type { HydratedPromotionRequestRecord } from "../models/promotionRequest.js"
+import type { HydratedPromotionRequestRecord, PromotionStatus } from "../models/promotionRequest.js"
 
 export async function createPromotionRequest(db: Surreal, request: CreatePromotionRequestDto): Promise<PromotionRequestDto> {
-  const authorId = request.author.startsWith("agent:")
-    ? new RecordId(T.agent, request.author.replace("agent:", ""))
-    : new RecordId(T.user, request.author.replace("user:", ""))
+  const authorId = request.authorType === "agent"
+    ? new RecordId(T.agent, request.authorId)
+    : new RecordId(T.user, request.authorId)
 
   const query = `
     CREATE ONLY type::table($table) CONTENT {
@@ -37,11 +37,35 @@ export async function createPromotionRequest(db: Surreal, request: CreatePromoti
 }
 
 export async function fetchPromotionRequest(db: Surreal, id: string): Promise<PromotionRequestDto | null> {
-  const recordId = new RecordId(T.promotionRequest, id.replace("promotionRequest:", ""))
+  const recordId = new RecordId(T.promotionRequest, id)
   const query = `SELECT * FROM ONLY $id FETCH fromScope, toScope, author, workspace`
 
   const [promotionRequest] = await db.query<[HydratedPromotionRequestRecord | null]>(query, { id: recordId })
   if (!promotionRequest) return null
 
   return toPromotionRequestDto(promotionRequest)
+}
+
+export const fetchPromotionRequestById = fetchPromotionRequest
+
+export async function getPendingPromotionRequests(db: Surreal, workspaceId: string, toScopeId: string, includeChildren: boolean = false): Promise<PromotionRequestDto[]> {
+  const scopeCondition = includeChildren
+    ? "toScope IN $toScopeId.{..+collect+inclusive}->parentOf->scope"
+    : "toScope = $toScopeId"
+
+  const query = `
+    SELECT * FROM type::table($table)
+    WHERE workspace = $workspace
+      AND status = "pending"
+      AND ${scopeCondition}
+    FETCH fromScope, toScope, author, workspace
+  `
+
+  const [promotionRequests] = await db.query<[HydratedPromotionRequestRecord[]]>(query, {
+    table: T.promotionRequest,
+    workspace: new RecordId(T.workspace, workspaceId),
+    toScopeId: new RecordId(T.scope, toScopeId)
+  })
+
+  return (promotionRequests ?? []).map(toPromotionRequestDto)
 }

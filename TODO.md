@@ -36,13 +36,14 @@
 ---
 
 ## ⏳ Phase 3: Repository Primitives (`packages/core/src/repos/promotionRequest.ts`)
-- [x] **`createPromotionRequest(db, request)`**: Single-roundtrip `CREATE ONLY ... RETURN AFTER FETCH fromScope, toScope, author, workspace`.
+- [x] **`createPromotionRequest(db, request)`**: Single-roundtrip `CREATE ONLY ... RETURN AFTER FETCH fromScope, toScope, author, workspace`. Uses typed `authorId` and `authorType: "user" | "agent"` with zero `.replace()`.
 - [x] **`fetchPromotionRequest(db, id)`**: Single-roundtrip `SELECT * FROM ONLY $id FETCH fromScope, toScope, author, workspace`.
-- [ ] **`getPendingPromotionRequests(db, workspaceId, scopeId, includeChildren: boolean)`**:
-  - Filter by `workspace = $ws AND status = 'pending'`.
-  - When `includeChildren === false`: match exact `toScope = $scope`.
-  - When `includeChildren === true`: traverse graph `(toScope = $scope OR toScope IN $scope->parentOf->scope)`.
+- [x] **`getPendingPromotionRequests(db, workspaceId, toScopeId, includeChildren: boolean)`**:
+  - Filter by `workspace = $workspace AND status = 'pending'`.
+  - When `includeChildren === false`: match exact `toScope = $toScopeId`.
+  - When `includeChildren === true`: traverse graph `toScope IN $toScopeId.{..+collect+inclusive}->parentOf->scope`.
   - Hydrate with `FETCH fromScope, toScope, author, workspace`.
+  - Maps to hydrated DTOs with bare IDs.
 - [ ] **`updatePromotionStatus(db, id, status, reviewDetails)`**:
   - Update `status`, `reviewedBy`, `reviewedAt`, and optional `rejectionReason`.
   - Return updated hydrated `PromotionRequestDto`.

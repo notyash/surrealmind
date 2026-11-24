@@ -7,7 +7,7 @@ export async function promote(admin: AgentMemory, request: CreatePromotionReques
     `promoted_from=${request.fromScope}`,
     `promoted_to=${request.toScope}`,
     `promoted_at=${new Date().toISOString()}`,
-    `promoted_by=${request.author}`
+    `promoted_by=${request.authorType}:${request.authorId}`
   ]
 
   await admin.forget(request.originalDraft)

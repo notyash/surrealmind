@@ -58,14 +58,17 @@
 * `relations/parentOf.surql`: Scope hierarchy relation `IN scope OUT scope`.
 * `relations/derivedFrom.surql`: Promotion lineage DAG with `createdAt` audit timestamp.
 
-### ✅ Completed Models & DTOs (`packages/core/src/` - Commit `5c65930`):
+### ✅ Completed Models & DTOs (`packages/core/src/` - Commit `5c65930` + Bare ID Refactor):
 * `models/promotionRequest.ts`: `PromotionRequestRecord`, `PromotionStatus`, and `HydratedPromotionRequestRecord` (using `Omit`).
 * `models/scope.ts`, `agent.ts`, `workspace.ts`, `user.ts`: Domain record interfaces.
-* `dto/promotionRequest.ts`: `PromotionRequestDto` with full sub-DTOs, `toPromotionRequestDto()` mapper with `isAgentRecord` guard.
-* `dto/scope.ts`, `agent.ts`, `workspace.ts`, `user.ts`: DTO interfaces and mappers (`toScopeDto`, `toAgentDto`, `toWorkspaceDto`, `toUserDto`).
+* `dto/promotionRequest.ts`: `PromotionRequestDto` with bare IDs (`String(r.id.id)`), `CreatePromotionRequestDto` with `authorId` and `authorType: "user" | "agent"`, and `toPromotionRequestDto()` mapper with `isAgentRecord` guard.
+* `dto/scope.ts`, `agent.ts`, `workspace.ts`, `user.ts`: DTO interfaces and mappers using bare IDs (`String(r.id.id)` and `String(r.foreignKey.id)`).
 * `repos/_tables.ts`: Table name constants (`T.scope`, `T.agent`, `T.workspace`, etc.).
-* `repos/promotionRequest.ts`: Single-roundtrip `createPromotionRequest` and `fetchPromotionRequest` implemented with `CREATE ONLY ... FETCH` and `SELECT * FROM ONLY ... FETCH`.
-* `services/promote.ts`: Streamlined to accept `CreatePromotionRequestDto` with `promoted_by=${request.author}` and removed redundant `lineage` string.
+* `repos/promotionRequest.ts`:
+  - `createPromotionRequest`: Single-roundtrip with typed `authorId`/`authorType` (no `.replace()`).
+  - `fetchPromotionRequest` / `fetchPromotionRequestById`: Single-roundtrip `SELECT * FROM ONLY $id FETCH ...`.
+  - `getPendingPromotionRequests`: Filtered by `workspace`, `status = "pending"`, and arbitrary-depth department recursion via `toScope IN $toScopeId.{..+collect+inclusive}->parentOf->scope` (or exact match when `includeChildren === false`).
+* `services/promote.ts`: Streamlined to accept typed `authorType:authorId` provenance label.
 * `TODO.md`: Immediate sprint roadmap.
 * `TODO_HARDENING.md`: Post-MVP items (maker-checker flag, connection pooling, canary tests).
 * `ARCHITECTURE.md`: Complete system architecture specification.
@@ -84,26 +87,28 @@
 
 ---
 
-## 5. Immediate Next Steps: Phase 3 (Repository Primitives)
+## 5. Immediate Next Steps: Phase 3 (Remaining Repository Primitives)
 
 Location: `packages/core/src/repos/promotionRequest.ts`
 
 Remaining functions to implement:
-1. **`getPendingPromotionRequests(db: Surreal, workspaceId: string, scopeId: string, includeChildren?: boolean): Promise<PromotionRequestDto[]>`**
-   - When `includeChildren === false`: query using composite index `WHERE workspace = $ws AND toScope = $scope AND status = 'pending' FETCH fromScope, toScope, author, workspace`.
-   - When `includeChildren === true`: query with graph traversal `WHERE workspace = $ws AND (toScope = $scope OR toScope IN $scope->parentOf->scope) AND status = 'pending' FETCH ...`.
-2. **`updatePromotionStatus(db: Surreal, id: string, status: PromotionStatus, reviewDetails: { reviewedBy?: string, reviewedAt?: Date, rejectionReason?: string }): Promise<PromotionRequestDto | null>`**
+1. **`updatePromotionStatus(db: Surreal, id: string, status: PromotionStatus, reviewDetails: { reviewedBy?: string, reviewedAt?: Date, rejectionReason?: string }): Promise<PromotionRequestDto | null>`**
    - Update record status, `reviewedBy`, `reviewedAt`, and optional `rejectionReason`.
-   - Use `FETCH fromScope, toScope, author, workspace` and return `PromotionRequestDto`.
-3. **`createDerivedFromEdge(db: Surreal, childRequestId: string, parentRequestId: string): Promise<void>`**
+   - Use `FETCH fromScope, toScope, author, workspace` and return hydrated `PromotionRequestDto`.
+2. **`createDerivedFromEdge(db: Surreal, childRequestId: string, parentRequestId: string): Promise<void>`**
    - Execute `RELATE $child->derivedFrom->$parent SET createdAt = time::now()`.
 
 ---
 
 ## 6. Git Status & Remote Sync
 - **Branch:** `feat/core-domain-promotion`
-- **Remote:** Fully pushed and up to date with `origin/feat/core-domain-promotion`.
-- **Working Tree:** Clean. On your laptop, simply run:
+- **To commit & push current progress before switching machines:**
+  ```bash
+  git add packages/core/src/ TODO.md PROJECT_HANDOFF.md
+  git commit -m "feat(core): implement getPendingPromotionRequests with recursive scope traversal and bare id DTOs"
+  git push origin feat/core-domain-promotion
+  ```
+- **To resume on your PC:**
   ```bash
   git pull origin feat/core-domain-promotion
   ```

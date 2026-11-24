@@ -25,7 +25,8 @@ export interface CreatePromotionRequestDto {
   toScope: string
   originalDraft: string
   reviewedFact: string
-  author: string
+  authorId: string
+  authorType: "user" | "agent"
   workspace: string
 }
 
@@ -44,7 +45,7 @@ export function toPromotionRequestDto(r: HydratedPromotionRequestRecord): Promot
   const authorDto = isAgentRecord(r.author) ? toAgentDto(r.author) : toUserDto(r.author)
 
   return {
-    id: r.id.toString(),
+    id: String(r.id.id),
     fromScope: toScopeDto(r.fromScope),
     toScope: toScopeDto(r.toScope),
     author: authorDto,
@@ -53,7 +54,7 @@ export function toPromotionRequestDto(r: HydratedPromotionRequestRecord): Promot
     reviewedFact: r.reviewedFact,
     status: r.status,
     requestedAt: r.requestedAt instanceof Date ? r.requestedAt.toISOString() : String(r.requestedAt),
-    reviewedBy: r.reviewedBy ? r.reviewedBy.toString() : undefined,
+    reviewedBy: r.reviewedBy ? String(r.reviewedBy.id) : undefined,
     reviewedAt: r.reviewedAt instanceof Date ? r.reviewedAt.toISOString() : (r.reviewedAt ? String(r.reviewedAt) : undefined),
     rejectionReason: r.rejectionReason ?? undefined
   }

@@ -16,10 +16,10 @@ export interface CreateWorkspaceDto {
 
 export function toWorkspaceDto(r: WorkspaceRecord): WorkspaceDto {
   return {
-    id: r.id.toString(),
+    id: String(r.id.id),
     name: r.name,
     logo: r.logo ?? null,
-    ownerId: r.owner.toString(),
+    ownerId: String(r.owner.id),
     createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt)
   }
 }
