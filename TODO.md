@@ -35,14 +35,19 @@
 
 ---
 
-## ⏳ Phase 3: Repository Primitives (`packages/core/src/repos/`)
-- [ ] **`fetchPromotionRequest(db, id)`**: Complete and verify with typed DTO.
+## ⏳ Phase 3: Repository Primitives (`packages/core/src/repos/promotionRequest.ts`)
+- [x] **`createPromotionRequest(db, request)`**: Single-roundtrip `CREATE ONLY ... RETURN AFTER FETCH fromScope, toScope, author, workspace`.
+- [x] **`fetchPromotionRequest(db, id)`**: Single-roundtrip `SELECT * FROM ONLY $id FETCH fromScope, toScope, author, workspace`.
 - [ ] **`getPendingPromotionRequests(db, workspaceId, scopeId, includeChildren: boolean)`**:
-  - Query using composite index for exact scope, or traverse `->parentOf->scope` when `includeChildren` is true.
+  - Filter by `workspace = $ws AND status = 'pending'`.
+  - When `includeChildren === false`: match exact `toScope = $scope`.
+  - When `includeChildren === true`: traverse graph `(toScope = $scope OR toScope IN $scope->parentOf->scope)`.
+  - Hydrate with `FETCH fromScope, toScope, author, workspace`.
 - [ ] **`updatePromotionStatus(db, id, status, reviewDetails)`**:
-  - Update status, `reviewedBy`, `reviewedAt`, and optional `rejectionReason`.
-- [ ] **`createDerivedFromEdge(db, childId, parentId)`**:
-  - Insert `RELATE` edge into `derivedFrom` relation table.
+  - Update `status`, `reviewedBy`, `reviewedAt`, and optional `rejectionReason`.
+  - Return updated hydrated `PromotionRequestDto`.
+- [ ] **`createDerivedFromEdge(db, childRequestId, parentRequestId)`**:
+  - Insert graph relation: `RELATE $child->derivedFrom->$parent SET createdAt = time::now()`.
 
 ---
 
