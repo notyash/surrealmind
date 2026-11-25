@@ -1,0 +1,8 @@
+name = "surrealmind-api"
+main = "src/index.ts"
+compatibility_date = "2025-07-18"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+SURREAL_NAMESPACE = "surrealmind"
+SURREAL_DATABASE = "surrealmind"
