@@ -17,5 +17,7 @@ DEFINE TABLE OVERWRITE promotionRequest SCHEMAFULL
     DEFINE FIELD OVERWRITE reviewedBy ON promotionRequest TYPE option<record<user>>; 
     DEFINE FIELD OVERWRITE reviewedAt ON promotionRequest TYPE option<datetime>;
     DEFINE FIELD OVERWRITE rejectionReason ON promotionRequest TYPE option<string>;
+    DEFINE FIELD OVERWRITE idempotencyKey ON promotionRequest TYPE option<string>;
 
 DEFINE INDEX OVERWRITE promotion_scope_status_idx ON promotionRequest FIELDS workspace, toScope, status;
+DEFINE INDEX OVERWRITE promotion_idempotency_idx ON promotionRequest FIELDS idempotencyKey;
