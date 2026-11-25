@@ -28,6 +28,7 @@ export interface CreatePromotionRequestDto {
   authorId: string
   authorType: "user" | "agent"
   workspace: string
+  idempotencyKey?: string
 }
 
 export interface PromotionResult {

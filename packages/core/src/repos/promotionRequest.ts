@@ -16,7 +16,7 @@ export async function createPromotionRequest(db: Surreal, request: CreatePromoti
       reviewedFact: $reviewedFact,
       author: $author,
       workspace: $workspace
-    } RETURN AFTER FETCH fromScope, toScope, author, workspace
+    } RETURN AFTER
   `
 
   const [promotionRequest] = await db.query<[HydratedPromotionRequestRecord | null]>(query, {

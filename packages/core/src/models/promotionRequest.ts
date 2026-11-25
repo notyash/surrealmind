@@ -19,6 +19,7 @@ export interface PromotionRequestRecord {
   reviewedBy?: RecordId<"user">
   reviewedAt?: Date
   rejectionReason?: string
+  idempotencyKey?: string
 }
 
 export interface HydratedPromotionRequestRecord extends Omit<PromotionRequestRecord, "fromScope" | "toScope" | "author" | "workspace"> {
