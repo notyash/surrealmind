@@ -6,6 +6,11 @@ dist/
 .env.*.local
 .dev.vars
 apps/api/.dev.vars
+.terraform/
+*.tfstate
+*.tfstate.backup
+.wrangler/
+apps/api/.wrangler/
 *.tsbuildinfo
 AGENT_RULES.md
 TODO_HARDENING.md

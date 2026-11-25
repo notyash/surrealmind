@@ -1,0 +1,88 @@
+name: CI/CD Pipeline - SurrealMind Edge API
+
+on:
+  push:
+    paths:
+      - "apps/api/**"
+      - "packages/core/**"
+      - ".github/workflows/deploy.yml"
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - "packages/core/**"
+      - ".github/workflows/deploy.yml"
+
+jobs:
+  # 1. CI Quality Gate (Runs on ALL branches and Pull Requests)
+  test-and-build:
+    name: Typecheck & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Install Monorepo Dependencies
+        run: npm ci
+
+      - name: Typecheck Core Package
+        run: npx tsc --noEmit -p packages/core/tsconfig.json
+
+      - name: Typecheck Edge API
+        run: npx tsc --noEmit -p apps/api/tsconfig.json
+
+      - name: Build Production Bundle (Dry Run)
+        working-directory: apps/api
+        run: npx wrangler deploy --dry-run --outdir=dist
+
+  # 2. CD Deployment (ONLY runs on push/merge to main)
+  deploy:
+    name: Deploy to Cloudflare Workers
+    needs: test-and-build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Deploy to Cloudflare
+        working-directory: apps/api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler deploy
+
+      # 3. Dynamic Health Check with Retry Loop
+      - name: Verify Live Production Health
+        run: |
+          echo "Polling live production health check..."
+          HEALTHY=false
+          for i in {1..5}; do
+            RESPONSE=$(curl -s https://surrealmind-api.yashdahapute7.workers.dev/health || true)
+            echo "Attempt $i response: $RESPONSE"
+            if echo "$RESPONSE" | grep -q '"status":"healthy"'; then
+              echo "Live endpoint verified healthy on attempt $i!"
+              HEALTHY=true
+              break
+            fi
+            echo "Propagation pending... retrying in 2 seconds"
+            sleep 2
+          done
+
+          if [ "$HEALTHY" = false ]; then
+            echo "Health check timed out or database disconnected!"
+            exit 1
+          fi
