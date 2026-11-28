@@ -1,5 +1,5 @@
 import { AgentMemoryError } from "@surrealdb/memory";
-import { whoAmI } from "../src/config.js";
+import { whoAmI } from "../packages/core/src/services/memorySetup.js";
 
 async function main(): Promise<void> {
   const admin = await whoAmI("ADMIN_KEY");

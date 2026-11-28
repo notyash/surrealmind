@@ -36,8 +36,8 @@ export async function createPromotionRequest(db: Surreal, request: CreatePromoti
   return toPromotionRequestDto(promotionRequest)
 }
 
-export async function fetchPromotionRequest(db: Surreal, id: string): Promise<PromotionRequestDto | null> {
-  const recordId = new RecordId(T.promotionRequest, id)
+export async function fetchPromotionRequest(db: Surreal, requestId: string): Promise<PromotionRequestDto | null> {
+  const recordId = new RecordId(T.promotionRequest, requestId)
   const query = `SELECT * FROM ONLY $id FETCH fromScope, toScope, author, workspace`
 
   const [promotionRequest] = await db.query<[HydratedPromotionRequestRecord | null]>(query, { id: recordId })
@@ -45,8 +45,6 @@ export async function fetchPromotionRequest(db: Surreal, id: string): Promise<Pr
 
   return toPromotionRequestDto(promotionRequest)
 }
-
-export const fetchPromotionRequestById = fetchPromotionRequest
 
 export async function getPendingPromotionRequests(db: Surreal, workspaceId: string, toScopeId: string, includeChildren: boolean = false): Promise<PromotionRequestDto[]> {
   const scopeCondition = includeChildren
@@ -68,4 +66,30 @@ export async function getPendingPromotionRequests(db: Surreal, workspaceId: stri
   })
 
   return (promotionRequests ?? []).map(toPromotionRequestDto)
+}
+
+export async function updatePromotionStatus(db: Surreal, requestId: string, status: PromotionStatus, reviewedBy: string, rejectionReason?: string) : Promise<PromotionRequestDto | null> {
+  const recordId = new RecordId(T.promotionRequest, requestId)
+  const reviewedByRecord = new RecordId(T.user, reviewedBy)
+  const reason = rejectionReason ? rejectionReason : null
+  const query = `
+  SELECT * FROM ONLY (
+    UPDATE ONLY $requestId
+    SET status = $status,
+        reviewedBy = $reviewedBy,
+        rejectionReason = $reason,
+        reviewedAt = time::now()
+    RETURN AFTER
+  ) FETCH fromScope, toScope, author, workspace
+  `
+
+  const [promotionRequest] = await db.query<[HydratedPromotionRequestRecord | null]>(query, {
+    requestId: recordId,
+    status,
+    reviewedBy: reviewedByRecord,
+    reason
+  })
+
+  if (!promotionRequest) return null
+  return toPromotionRequestDto(promotionRequest)
 }

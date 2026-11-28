@@ -1,14 +1,5 @@
-import type { AgentMemory } from "@surrealdb/memory";
-import { whoAmI } from "../src/config.js";
-import { promote, type PromotionRequest } from "../src/promote.js";
+import { whoAmI } from "../packages/core/src/services/memorySetup.js";
 
-const request: PromotionRequest = {
-    fromScope: "company/finance/chiru",
-    toScope: "company/finance",
-    originalDraft: "In a private financial draft for SurrealDB, Chiru evaluated external market rates and proposed that SurrealDB adopt an internal hybrid pricing model Y.",
-    reviewedFact: "SurrealDB is adopting internal hybrid pricing model Y for Q4 enterprise tiers.",
-    promotedBy: "Chiru"
-}
 
 async function verifyPromotion() {
     const yash = await whoAmI("YASH_KEY")
