@@ -68,19 +68,26 @@ SurrealMind treats organizational memory like a Git repository:
 
 ---
 
-## 4. UI/UX Interaction Modes
-1. **Interactive Memory Explorer (SurrealMind UI):**
-   - Displays live memories collected by `@surrealdb/memory` per scope/session.
-   - Users inspect active drafts, click "Promote to [Scope]", edit the refined fact, and submit.
-   - `fromScope` is automatically derived from the selected memory session.
-2. **Autonomous Agent Tool Call (`promote_memory` tool):**
-   - Connected agents (via LangChain, LlamaIndex, or custom SDK) are given a tool to propose their own findings.
-   - Agents automatically pass their own `agent.scope` as `fromScope` and target their parent scope or task objective as `toScope`.
+## 4. Product Strategy: Engineering ↔ Product Pilot & Automated Capture
+Informed by real-world "Company Brain" adoption patterns:
+1. **Start With One Acute Workflow (Engineering ↔ Product):**
+   - Rather than forcing an organization-wide wiki on Day 1, the MVP targets **Engineering ↔ Product alignment**—capturing architectural decisions, exceptions, and customer-driven spec tradeoffs where missing context hurts velocity most.
+2. **Zero Manual Wikis (Automated Capture Wedge):**
+   - Knowledge must be captured automatically where work happens so it never goes stale:
+     - **MCP Server (`@surrealmind/mcp`):** Coding agents (Claude Code, Cursor) automatically log decisions into their assigned `agent.scope` and call `request_promotion` over HTTP to `apps/api`.
+     - **Edge Ingestion API (`apps/api` on Cloudflare Workers):** Stateless global gateway with `x-idempotency-key` deduplication so agent retries never create duplicate promotion requests.
+3. **Preserving the *"Why"* & Controlling Token Costs:**
+   - Every promotion preserves both `originalDraft` (the raw decision rationale / *why*) and `reviewedFact` (the concise, approved rule).
+   - Scoping retrieval via SurrealDB graph traversal (`workspace` + `scope->parentOf`) before vector/LLM calls prevents noisy org-wide context and controls token expenditure.
+4. **Interactive Governance UI (`apps/web` — TanStack Start):**
+   - Product/Engineering leads inspect captured drafts in the Memory Explorer, refine `reviewedFact`, and approve/reject promotions up the hierarchy.
 
 ---
 
-## 5. Technology Stack & Verification
-- **Database Engine:** SurrealDB v2 (Surreal Cloud).
-- **Memory Engine:** `@surrealdb/memory` (Agent Memory with vector embeddings and HNSW indexing).
+## 5. Technology Stack & Infrastructure
+- **Database Engine:** SurrealDB v2 (Surreal Cloud) with automated `.surql` migrations (`db:migrate` / `db:reset`).
+- **Memory Engine:** `@surrealdb/memory` (Agent Memory with hybrid retrieval: Vector + BM25 + Knowledge Graph).
 - **Backend & Core Domain:** Node.js (v24+), TypeScript (ES2022 / NodeNext, strictly typed without `any`).
+- **Edge Ingestion API:** Hono on **Cloudflare Workers** (stateless per-request HTTPS to Surreal Cloud, idempotent writes, `/health` DB ping).
+- **Infrastructure & CI/CD:** **Terraform** (`infra/main.tf`) + **GitHub Actions** (typecheck gate, Wrangler atomic deploy to `main`, post-deploy `/health` retry check).
 - **Web Frontend:** TanStack Start (full-stack SSR, React, Vite).
